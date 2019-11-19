@@ -1,5 +1,5 @@
 "use strict";
-alert("work);
+alert("work");
 /*
  *  Document   : app.js
  *  Author     : pixelcave

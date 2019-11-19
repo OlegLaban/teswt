@@ -756,810 +756,827 @@ var App = function() {
 /* Initialize app when page loads */
   $(function(){ App.init(); });
 
+  "use strict";
 
-function confirmDelete({ e, target }, text) {
-    var _text = `${text}. Восстановление не возможно!!!`;
-    if (confirm(_text)) {
-        // success
+  function confirmDelete(_ref, text) {
+    var e = _ref.e,
+        target = _ref.target;
+
+    var _text = "".concat(text, ". \u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043D\u0435 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E!!!");
+
+    if (confirm(_text)) {// success
     } else {
-        e.preventDefault();
-        var next = $(target).next();
-        next.trigger('click');
+      e.preventDefault();
+      var next = $(target).next();
+      next.trigger('click');
     }
-}
+  }
 
+  $(document).ready(function () {
+    $.validator.addMethod("gretedZero", function (element) {
+      return parseFloat(element) > 0;
+    }, "Значение в поле должно быть больше нуля");
+  });
+  $(document).ajaxComplete(function () {
+    (function () {
+      var orderNumber,
+          oldOrderNumber,
+          orderNumberUser = $('.inputForOrderNumber');
+      orderNumberUser.on('focus', function () {
+        orderNumber = $(this);
+        oldOrderNumber = orderNumber.val();
+      });
 
-    $(document).ready(function () {
-        $.validator.addMethod("gretedZero", function (element) {
-            return parseFloat(element) > 0;
-        }, "Значение в поле должно быть больше нуля");
-    });
+      function action() {
+        var formClass = '.formOrderNumber-' + $(this).data('id');
+        var name = $(this).attr('name');
+        var objectForValidate = {};
+        oldOrderNumber = $(oldInput)[0] === undefined ? oldOrderNumber : $(oldInput)[0].defaultValue;
+        objectForValidate['rules'] = {};
+        objectForValidate['rules'][name] = {
+          gretedZero: true
+        };
+        $(formClass).validate(objectForValidate);
+        $(this).prop('disabled', true);
 
+        if ($(this).val() <= 0) {
+          $(this).prop('disabled', false);
+          $(this).val(oldOrderNumber);
+        } else if ($(this).val() !== oldOrderNumber) {
+          $(this).prop('disabled', true);
+          $.ajax({
+            url: '/admin/users/update/ordernum',
+            type: 'POST',
+            textType: 'html',
+            data: {
+              id: $(this).data('id'),
+              newValue: $(this).val()
+            },
+            beforeSend: function beforeSend() {
+              $(this).prop('disabled', true);
+            },
+            complete: function complete() {
+              $(this).prop('disabled', false);
+            },
+            success: function success(data) {
+              var table = $('#user-datatable').DataTable();
+              table.columns(4).search(data);
+              table.order([5, 'asc']).draw();
+              $('#sectionSelect option[value="' + data + '"]').attr('selected', 'select');
 
-    $(document).ajaxComplete(function () {
-        (function () {
-            var orderNumber, oldOrderNumber,  orderNumberUser = $('.inputForOrderNumber');
-            orderNumberUser.on('focus', function () {
-                orderNumber = $(this);
-                oldOrderNumber = orderNumber.val();
-            });
-
-            function action() {
-                var formClass = '.formOrderNumber-' + $(this).data('id');
-                var name = $(this).attr('name');
-                var objectForValidate = {};
-                oldOrderNumber = $(oldInput)[0] === undefined ? oldOrderNumber :  $(oldInput)[0].defaultValue;
-                objectForValidate['rules'] = {};
-                objectForValidate['rules'][name] = {
-                    gretedZero: true,
-                };
-                $(formClass).validate(objectForValidate);
-
-                $(this).prop('disabled', true);
-                if ($(this).val() <= 0) {
-                    $(this).prop('disabled', false);
-                    $(this).val(oldOrderNumber);
-                } else if ($(this).val() !== oldOrderNumber) {
-                    $(this).prop('disabled', true);
-                    $.ajax({
-                        url: '/admin/users/update/ordernum',
-                        type: 'POST',
-                        textType: 'html',
-                        data: {id: $(this).data('id'), newValue: $(this).val()},
-                        beforeSend: function () {
-                            $(this).prop('disabled', true);
-                        },
-                        complete: function () {
-                            $(this).prop('disabled', false);
-                        },
-                        success: function (data) {
-                            var table = $('#user-datatable').DataTable();
-                            table.columns(4).search(data);
-                            table.order([5, 'asc']).draw();
-                            $('#sectionSelect option[value="' + data + '"]').attr('selected', 'select');
-                            if ($('body').find('.alert-success').length === 0 ) {
-                                $.bootstrapGrowl("Данные обновлены успешно!", {type: 'success', delay: 2000});
-                            }
-                        }
-                    });
-                } else {
-                    $(this).prop('disabled', false);
-                }
-
+              if ($('body').find('.alert-success').length === 0) {
+                $.bootstrapGrowl("Данные обновлены успешно!", {
+                  type: 'success',
+                  delay: 2000
+                });
+              }
             }
+          });
+        } else {
+          $(this).prop('disabled', false);
+        }
+      }
 
-            var oldClick = false;
-            var input;
-            var oldInput = '';
-            $('#user-datatable').on('click', function (event) {
-                if (event.target !== input && oldClick) {
-                    oldClick = false;
-                    action.call(input);
-                }else if (oldInput !== ""){
-                    if (oldInput.dataset['id'] !== input.dataset['id'] && oldClick) {
-                        oldClick = false;
-                        action.call(oldInput);
-                        oldInput = '';
-                    }
+      var oldClick = false;
+      var input;
+      var oldInput = '';
+      $('#user-datatable').on('click', function (event) {
+        if (event.target !== input && oldClick) {
+          oldClick = false;
+          action.call(input);
+        } else if (oldInput !== "") {
+          if (oldInput.dataset['id'] !== input.dataset['id'] && oldClick) {
+            oldClick = false;
+            action.call(oldInput);
+            oldInput = '';
+          }
+        }
+      });
+      orderNumberUser.keydown(function (event) {
+        if (event.keyCode === 13) {
+          oldClick = false;
+          $(this).prop('disabled', true);
+          action.call(this);
+        }
+      });
+      orderNumberUser.on('change', function () {
+        oldInput = this;
+      });
+      orderNumberUser.on('focus', function (event) {
+        oldClick = true;
+        input = this;
+      });
+    })();
 
-                }
-            });
+    (function () {
+      var id,
+          oldOrderNumber,
+          newOrderNumber,
+          orderNumberArticle = $('.orderNumberArticle');
+      orderNumberArticle.on('focus', function () {
+        id = $(this).data('id');
+        oldOrderNumber = $(this).val();
 
-            orderNumberUser.keydown(function (event) {
-                if (event.keyCode === 13){
-                    oldClick = false;
-                    $(this).prop('disabled', true);
-                    action.call(this);
-                }
-            });
-            orderNumberUser.on('change', function () {
-                oldInput = this;
-            });
-            orderNumberUser.on('focus', function (event) {
-                oldClick = true;
-                input = this;
-            });
+        if ($('span').is('#messOrderNumb')) {
+          $('#messOrderNumb').detach();
+          $('.br').detach();
+        }
+      });
 
-        })();
+      function action() {
+        var formClass = '.formOrderNumber-' + $(this).data('id');
+        var name = $(this).attr('name');
+        var objectForValidate = {};
+        oldOrderNumber = $(oldInput)[0] === undefined ? oldOrderNumber : $(oldInput)[0].defaultValue;
+        objectForValidate['rules'] = {};
+        objectForValidate['rules'][name] = {
+          gretedZero: true
+        };
+        $(formClass).validate(objectForValidate);
+        $(this).prop('disabled', true);
+        id = $(this).data('id');
+        newOrderNumber = $(this).val();
 
-        (function () {
-            var id, oldOrderNumber, newOrderNumber, orderNumberArticle = $('.orderNumberArticle');
-            orderNumberArticle.on('focus', function () {
-                id = $(this).data('id');
-                oldOrderNumber = $(this).val();
-                if ($('span').is('#messOrderNumb')) {
-                    $('#messOrderNumb').detach();
-                    $('.br').detach();
-                }
-            });
+        if ($(this).val() <= 0) {
+          $(this).prop('disabled', false);
+          $(this).val(oldOrderNumber);
+        } else if ($(this).val() !== 0 && oldOrderNumber !== $(this).val()) {
+          $(this).prop('disabled', true);
+          $.ajax({
+            url: '/admin/article/ajax/data/order',
+            type: "POST",
+            textType: 'html',
+            data: {
+              idArticle: $(this).data('id'),
+              orderNumber: $(this).val()
+            },
+            beforeSend: function beforeSend() {
+              $(this).prop('disabled', true);
+            },
+            complete: function complete() {
+              $(this).prop('disabled', false);
+            },
+            success: function success(data) {
+              var table = $('#article-datatable').DataTable();
+              table.columns(2).search(data);
+              table.order([4, 'asc']).draw();
+              $('#sectionSelect option[value="' + data + '"]').attr('selected', 'select');
 
-            function action() {
-                var formClass = '.formOrderNumber-' + $(this).data('id');
-                var name = $(this).attr('name');
-                var objectForValidate = {};
-                oldOrderNumber = $(oldInput)[0] === undefined ? oldOrderNumber :  $(oldInput)[0].defaultValue;
-                objectForValidate['rules'] = {};
-                objectForValidate['rules'][name] = {
-                    gretedZero: true,
-                };
-                $(formClass).validate(objectForValidate);
-                $(this).prop('disabled', true);
-                id = $(this).data('id');
-                newOrderNumber = $(this).val();
-                if ($(this).val() <= 0) {
-                    $(this).prop('disabled', false);
-                    $(this).val(oldOrderNumber);
-                } else if ($(this).val() !== 0 && oldOrderNumber !== $(this).val()) {
-                    $(this).prop('disabled', true);
-                    $.ajax({
-                        url: '/admin/article/ajax/data/order',
-                        type: "POST",
-                        textType: 'html',
-                        data: {idArticle: $(this).data('id'), orderNumber: $(this).val()},
-                        beforeSend: function () {
-                            $(this).prop('disabled', true);
-                        },
-                        complete: function () {
-                            $(this).prop('disabled', false);
-                        },
-                        success: function (data) {
-                            var table = $('#article-datatable').DataTable();
-                            table.columns(2).search(data);
-                            table.order([4, 'asc']).draw();
-                            $('#sectionSelect option[value="' + data + '"]').attr('selected', 'select');
-                            if ($('body').find('.alert-success').length === 0 ) {
-                                $.bootstrapGrowl("Данные обновлены успешно!", {type: 'success', delay: 2000});
-                            }
-                        }
-                    });
-                } else {
-                    $(this).prop('disabled', false);
-                }
-
+              if ($('body').find('.alert-success').length === 0) {
+                $.bootstrapGrowl("Данные обновлены успешно!", {
+                  type: 'success',
+                  delay: 2000
+                });
+              }
             }
+          });
+        } else {
+          $(this).prop('disabled', false);
+        }
+      }
 
-            var oldClick = false;
-            var input;
-            var oldInput = '';
-            $('#article').on('click', function (event) {
-                if (event.target !== input && oldClick) {
-                    oldClick = false;
-                    action.call(input);
-                }else if (oldInput !== ""){
-                    if (oldInput.dataset['id'] !== input.dataset['id'] && oldClick) {
-                        oldClick = false;
-                        action.call(oldInput);
-                        oldInput = '';
-                    }
+      var oldClick = false;
+      var input;
+      var oldInput = '';
+      $('#article').on('click', function (event) {
+        if (event.target !== input && oldClick) {
+          oldClick = false;
+          action.call(input);
+        } else if (oldInput !== "") {
+          if (oldInput.dataset['id'] !== input.dataset['id'] && oldClick) {
+            oldClick = false;
+            action.call(oldInput);
+            oldInput = '';
+          }
+        }
+      });
+      orderNumberArticle.keydown(function (event) {
+        if (event.keyCode === 13) {
+          oldClick = false;
+          $(this).prop('disabled', true);
+          action.call(this);
+        }
+      });
+      orderNumberArticle.on('change', function () {
+        oldInput = this;
+      });
+      orderNumberArticle.on('focus', function (event) {
+        oldClick = true;
+        input = this;
+      });
+    })();
 
-                }
-            });
+    (function () {
+      var id,
+          oldOrderNumber,
+          newOrderNumber,
+          orderNumberArticle = $('.orderNumberObject');
+      orderNumberArticle.on('focus', function (event) {
+        id = $(this).data('id');
+        oldOrderNumber = $(this).val();
+      });
 
-            orderNumberArticle.keydown(function (event) {
-                if (event.keyCode === 13){
-                    oldClick = false;
-                    $(this).prop('disabled', true);
-                    action.call(this);
-                }
-            });
-            orderNumberArticle.on('change', function () {
-                oldInput = this;
-            });
-            orderNumberArticle.on('focus', function (event) {
-                oldClick = true;
-                input = this;
-            });
-        })();
+      function action() {
+        var formClass = '.formOrderNumber-' + $(this).data('id');
+        var name = $(this).attr('name');
+        oldOrderNumber = $(oldInput)[0] === undefined ? oldOrderNumber : $(oldInput)[0].defaultValue;
+        $(formClass).validate(objectForValidate);
+        $(this).prop('disabled', true);
+        id = $(this).data('id');
+        newOrderNumber = $(this).val();
 
-        (function () {
-            var id, oldOrderNumber, newOrderNumber, orderNumberArticle = $('.orderNumberObject');
-            orderNumberArticle.on('focus', function (event) {
-                    id = $(this).data('id');
-                    oldOrderNumber = $(this).val()
-            });
+        if ($(this).val() <= 0) {
+          $(this).prop('disabled', false);
+          $(this).val(oldOrderNumber);
+        } else if ($(this).val() !== 0 && oldOrderNumber !== $(this).val()) {
+          $.ajax({
+            url: '/admin/object/ajax/data/order',
+            type: "POST",
+            textType: 'html',
+            data: {
+              idApartment: $(this).data('id'),
+              orderNumber: $(this).val()
+            },
+            beforeSend: function beforeSend() {
+              $(this).prop('disabled', true);
+            },
+            complete: function complete() {
+              $(this).prop('disabled', false);
+            },
+            success: function success(data) {
+              var table = $('#object-datatable').DataTable();
+              table.columns(5).search(data);
+              table.order([6, 'asc']).draw();
+              $('#object-specialization option[value="' + data + '"]').attr('selected', 'select');
 
-            function action() {
-                var formClass = '.formOrderNumber-' + $(this).data('id');
-                var name = $(this).attr('name');
-                oldOrderNumber = $(oldInput)[0] === undefined ? oldOrderNumber :  $(oldInput)[0].defaultValue;
-                $(formClass).validate(objectForValidate);
-                $(this).prop('disabled', true);
-                id = $(this).data('id');
-                newOrderNumber = $(this).val();
-                if ($(this).val() <= 0) {
-                    $(this).prop('disabled', false);
+              if ($('body').find('.alert-success').length === 0) {
+                $.bootstrapGrowl("Данные обновлены успешно!", {
+                  type: 'success',
+                  delay: 2000
+                });
+              }
 
-                    $(this).val(oldOrderNumber);
-                } else if ($(this).val() !== 0 && oldOrderNumber !== $(this).val()) {
-                    $.ajax({
-                        url: '/admin/object/ajax/data/order',
-                        type: "POST",
-                        textType: 'html',
-                        data: {idApartment: $(this).data('id'), orderNumber: $(this).val()},
-                        beforeSend: function () {
-                            $(this).prop('disabled', true);
-                        },
-                        complete: function () {
-                            $(this).prop('disabled', false);
-                        },
-                        success: function (data) {
-                            var table = $('#object-datatable').DataTable();
-                            table.columns(5).search(data);
-                            table.order([6, 'asc']).draw();
-                            $('#object-specialization option[value="' + data + '"]').attr('selected', 'select');
-                            if ($('body').find('.alert-success').length === 0 ) {
-                                $.bootstrapGrowl("Данные обновлены успешно!", {type: 'success', delay: 2000});
-                            }
-                            $('.orderNumberArticle').prop('disabled', true);
-                        }
-                    });
-                } else {
-                    $(this).prop('disabled', false);
-                }
-
+              $('.orderNumberArticle').prop('disabled', true);
             }
+          });
+        } else {
+          $(this).prop('disabled', false);
+        }
+      }
 
-            var oldClick = false;
-            var input;
-            var oldInput = '';
-            $('#apartment').on('click', function (event) {
-                if (event.target !== input && oldClick) {
-                    oldClick = false;
-                    action.call(input);
-                }else if (oldInput !== ""){
-                    if (oldInput.dataset['id'] !== input.dataset['id'] && oldClick) {
-                        oldClick = false;
-                        action.call(oldInput);
-                        oldInput = '';
-                    }
-
-                }
-            });
-
-            orderNumberArticle.keydown(function (event) {
-                if (event.keyCode === 13){
-                    oldClick = false;
-                    $(this).prop('disabled', true);
-                    action.call(this);
-                }
-            });
-            orderNumberArticle.on('change', function () {
-               oldInput = this;
-            });
-            orderNumberArticle.on('focus', function (event) {
-                    oldClick = true;
-                    input = this;
-            });
-
-        })();
-
+      var oldClick = false;
+      var input;
+      var oldInput = '';
+      $('#apartment').on('click', function (event) {
+        if (event.target !== input && oldClick) {
+          oldClick = false;
+          action.call(input);
+        } else if (oldInput !== "") {
+          if (oldInput.dataset['id'] !== input.dataset['id'] && oldClick) {
+            oldClick = false;
+            action.call(oldInput);
+            oldInput = '';
+          }
+        }
+      });
+      orderNumberArticle.keydown(function (event) {
+        if (event.keyCode === 13) {
+          oldClick = false;
+          $(this).prop('disabled', true);
+          action.call(this);
+        }
+      });
+      orderNumberArticle.on('change', function () {
+        oldInput = this;
+      });
+      orderNumberArticle.on('focus', function (event) {
+        oldClick = true;
+        input = this;
+      });
+    })();
+  });
+  var specializationChange = false;
+  $(document).ready(function () {
+    $("#object-specialization").on('change', function () {
+      table = $('#object-datatable').DataTable();
+      table.order([6, 'asc']).draw();
     });
-    var specializationChange = false;
-
-    $(document).ready(function () {
-        $("#object-specialization").on('change', function () {
-            table = $('#object-datatable').DataTable();
-            table.order([6, 'asc']).draw();
-        });
-        $("#sectionSelect").on('change', function () {
-            table = $('#user-datatable').DataTable();
-            table.order([5, 'asc']).draw();
-        });
+    $("#sectionSelect").on('change', function () {
+      table = $('#user-datatable').DataTable();
+      table.order([5, 'asc']).draw();
     });
+  });
 
-    function addObjectsIsAlert(id, name, url) {
-        if (url === 'image') {
-            $.ajax({
-                url: 'delete/ajax/',
-                method: 'POST',
-                type: 'html',
-                data: {'id': id},
-                success: function (data) {
-                    var text = '';
-                    var newText = JSON.parse(data.data);
-                    if (newText !== false) {
-                        text = '<div class="modal-text">Плашка ' + name + ' наложена на объекты:</div>';
-                        text += newText;
-                    }
-                    $('#modal-image_overlay-' + id + '-delete .modal-header .model-object-list').html(text);
-                    $('#modal-image_overlay-' + id + '-delete').modal('show');
-                }
-            })
-        }
-        if (url === 'user') {
-            $.ajax({
-                url: '/admin/users/delete/ajax/',
-                method: 'POST',
-                type: 'html',
-                data: {'id': id},
-                success: function (data) {
-                    var text;
-                    var newText = JSON.parse(data.data);
-                    if (newText != false) {
-                        text = '<div class="modal-text">C этим пользователем связаны следующие объекты:</div>';
-                        text += newText;
-                    } else {
-                        text = '';
-                    }
-                    $('#modal-user-' + id + '-delete .modal-header .model-object-list').html(text);
-                    $('#modal-user-' + id + '-delete').modal('show');
-                }
-            })
-        }
-        if (url === 'object_section') {
-            $.ajax({
-                url: '/admin/object_section/delete/ajax/',
-                method: 'POST',
-                type: 'html',
-                data: {'id': id},
-                success: function (data) {
-                    var text;
-                    var newText = data.data;
-                    if (newText != false) {
-                        text = '<div class="modal-text">C этим разделом объектов связаны следующие пункты меню:</div>';
-                        text += newText;
-                    } else {
-                        text = '';
-                    }
-                    $('#modal-object-section-' + id + '-delete .modal-header .model-object-list').html(text);
-                    $('#modal-object-section-' + id + '-delete').modal('show');
-                }
-            })
-        }
-        if (url === 'article_section') {
-            $.ajax({
-                url: '/admin/article-section/delete/ajax/',
-                method: 'POST',
-                type: 'html',
-                data: {'id': id},
-                success: function (data) {
-                    var text;
-                    var newText = data.data;
-                    if (newText != false) {
-                        text = '<div class="modal-text">C этим разделом связаны следующие статьи:</div>';
-                        text += newText;
-                    } else {
-                        text = '';
-                    }
-                    $('#modal-article-section-' + id + '-delete .modal-header .model-object-list').html(text);
-                    $('#modal-article-section-' + id + '-delete').modal('show');
-                }
-            })
-        }
-        if (url === 'specialization') {
-            $.ajax({
-                url: '/admin/specialization/delete/ajax/',
-                method: 'POST',
-                type: 'html',
-                data: {'id': id},
-                success: function (data) {
-                    var text;
-                    var newText = data.data;
-                    if (newText != false) {
-                        text = '<div class="modal-text">За этой специализацией закреплены следующие пользователи:</div>';
-                        text += newText;
-                    } else {
-                        text = '';
-                    }
-                    $('#modal-specialization-' + id + '-delete .modal-header .model-object-list').html(text);
-                    $('#modal-specialization-' + id + '-delete').modal('show');
-                }
-            })
-        }
+  function addObjectsIsAlert(id, name, url) {
+    if (url === 'image') {
+      $.ajax({
+        url: 'delete/ajax/',
+        method: 'POST',
+        type: 'html',
+        data: {
+          'id': id
+        },
+        success: function success(data) {
+          var text = '';
+          var newText = JSON.parse(data.data);
 
-        if (url === 'apartment_complex') {
-            $.ajax({
-                url: '/admin/zhilye-kompleksy/delete/ajax/',
-                method: 'POST',
-                type: 'html',
-                data: {'id': id},
-                success: function (data) {
-                    var text;
-                    var newText = data.data;
-                    if (newText != false) {
-                        text = '<div class="modal-text">Этот жиличный комлекс закрплен за следующими разделами объектов:</div>';
-                        text += newText;
-                    } else {
-                        text = '';
-                    }
-                    $('#modal-apartment-complex-' + id + '-delete .modal-header .model-object-list').html(text);
-                    $('#modal-apartment-complex-' + id + '-delete').modal('show');
-                }
-            })
+          if (newText !== false) {
+            text = '<div class="modal-text">Плашка ' + name + ' наложена на объекты:</div>';
+            text += newText;
+          }
+
+          $('#modal-image_overlay-' + id + '-delete .modal-header .model-object-list').html(text);
+          $('#modal-image_overlay-' + id + '-delete').modal('show');
         }
-        if (url === 'developer') {
-            $.ajax({
-                url: '/admin/zastrojshhiki/delete/ajax/',
-                method: 'POST',
-                type: 'html',
-                data: {'id': id},
-                success: function (data) {
-                    var text;
-                    var newText = data.data;
-                    if (newText != false) {
-                        text = '<div class="modal-text">' +
-                            'Этот застройщик закрплен за следующими разделами объектов:' +
-                            '</div>';
-                        text += newText;
-                    } else {
-                        text = '';
-                    }
-                    $('#modal-developer-' + id + '-delete .modal-header .model-object-list').html(text);
-                    $('#modal-developer-' + id + '-delete').modal('show');
-                }
-            })
-        }
+      });
     }
 
-$(document).ready(
-    function () {
-        var canonicalCheckbox = $(".canonicalLinkDefault").first(),
-            canonicalLink = $('.canonicalLink').first(),
-            linkOriginal = $(".linkOriginal").first(),
-            sectionForUrl = $('.sectionForUrl').first();
+    if (url === 'user') {
+      $.ajax({
+        url: '/admin/users/delete/ajax/',
+        method: 'POST',
+        type: 'html',
+        data: {
+          'id': id
+        },
+        success: function success(data) {
+          var text;
+          var newText = JSON.parse(data.data);
 
-         function correctUrl(path, url, context, otherSite){
-            var parElem = context.parentNode;
-            if(url !== ''){
-                $.ajax({
-                    type: "POST",
-                    url: path,
-                    data: {'url': url, 'otherSite': otherSite},
-                    beforeSend: () => {
-                        $(context).attr('disabled', true);
-                        $('.btn-primary').attr('disabled', true);
-                        if($('#messageUrl').length < 1){
-                            $(parElem).append('<span id="messageUrl">' + 'Идет обрабоктка... '+'</span>');
-                        }
-                    },
-                    success: (data) => {
-                        $('.btn-primary').attr('disabled', false);
-                        $('#messageUrl').remove();
-                        $(context).attr('disabled', false);
-                        viewMessage(data, context);
-                    }
-                });
-            }
+          if (newText != false) {
+            text = '<div class="modal-text">C этим пользователем связаны следующие объекты:</div>';
+            text += newText;
+          } else {
+            text = '';
+          }
+
+          $('#modal-user-' + id + '-delete .modal-header .model-object-list').html(text);
+          $('#modal-user-' + id + '-delete').modal('show');
         }
+      });
+    }
 
-        function viewMessage(data, parEle) {
-            var inputOnUrl = $(parEle);
-            var url = data['url'];
-            var code = data['code'];
-            if(code !== 200 && code !== 401 && code !== 1){
-                $('#messageUrl').remove();
-                $(inputOnUrl[0]).addClass('errorUrl');
-                $(parEle.parentNode).append("<span id=\"messageUrl\" style='color:red'>" + " Неверный url " + "</span>");
-            }else if (code === 401){
-                $('#messageUrl').remove();
-                $(inputOnUrl[0]).addClass('errorUrl');
-                $(parEle.parentNode).append("<span id=\"messageUrl\" style='color:red'>" + " Невозможно проверить url т.к. требуется авторизация. " + "</span>");
-            }else if (code === 1){
-                $('#messageUrl').remove();
-                $(inputOnUrl[0]).addClass('errorUrl');
-                $(parEle.parentNode).append("<span id=\"messageUrl\" style='color:red'>" + " Данный url находится за пределами домена сайта." + "</span>");
-            }else{
-                $('#messageUrl').remove();
-            }
-            inputOnUrl.val(url);
+    if (url === 'object_section') {
+      $.ajax({
+        url: '/admin/object_section/delete/ajax/',
+        method: 'POST',
+        type: 'html',
+        data: {
+          'id': id
+        },
+        success: function success(data) {
+          var text;
+          var newText = data.data;
+
+          if (newText != false) {
+            text = '<div class="modal-text">C этим разделом объектов связаны следующие пункты меню:</div>';
+            text += newText;
+          } else {
+            text = '';
+          }
+
+          $('#modal-object-section-' + id + '-delete .modal-header .model-object-list').html(text);
+          $('#modal-object-section-' + id + '-delete').modal('show');
         }
+      });
+    }
 
-        //Start code for menu correct link
-        $('#menu_url').on('blur', function (){
-            var url = $(this).val();
-            correctUrl("/admin/menu/isseturl", url, this, false);
-        });
+    if (url === 'article_section') {
+      $.ajax({
+        url: '/admin/article-section/delete/ajax/',
+        method: 'POST',
+        type: 'html',
+        data: {
+          'id': id
+        },
+        success: function success(data) {
+          var text;
+          var newText = data.data;
 
-        $("#menu_url").on('focus', function () {
+          if (newText != false) {
+            text = '<div class="modal-text">C этим разделом связаны следующие статьи:</div>';
+            text += newText;
+          } else {
+            text = '';
+          }
+
+          $('#modal-article-section-' + id + '-delete .modal-header .model-object-list').html(text);
+          $('#modal-article-section-' + id + '-delete').modal('show');
+        }
+      });
+    }
+
+    if (url === 'specialization') {
+      $.ajax({
+        url: '/admin/specialization/delete/ajax/',
+        method: 'POST',
+        type: 'html',
+        data: {
+          'id': id
+        },
+        success: function success(data) {
+          var text;
+          var newText = data.data;
+
+          if (newText != false) {
+            text = '<div class="modal-text">За этой специализацией закреплены следующие пользователи:</div>';
+            text += newText;
+          } else {
+            text = '';
+          }
+
+          $('#modal-specialization-' + id + '-delete .modal-header .model-object-list').html(text);
+          $('#modal-specialization-' + id + '-delete').modal('show');
+        }
+      });
+    }
+
+    if (url === 'apartment_complex') {
+      $.ajax({
+        url: '/admin/zhilye-kompleksy/delete/ajax/',
+        method: 'POST',
+        type: 'html',
+        data: {
+          'id': id
+        },
+        success: function success(data) {
+          var text;
+          var newText = data.data;
+
+          if (newText != false) {
+            text = '<div class="modal-text">Этот жиличный комлекс закрплен за следующими разделами объектов:</div>';
+            text += newText;
+          } else {
+            text = '';
+          }
+
+          $('#modal-apartment-complex-' + id + '-delete .modal-header .model-object-list').html(text);
+          $('#modal-apartment-complex-' + id + '-delete').modal('show');
+        }
+      });
+    }
+
+    if (url === 'developer') {
+      $.ajax({
+        url: '/admin/zastrojshhiki/delete/ajax/',
+        method: 'POST',
+        type: 'html',
+        data: {
+          'id': id
+        },
+        success: function success(data) {
+          var text;
+          var newText = data.data;
+
+          if (newText != false) {
+            text = '<div class="modal-text">' + 'Этот застройщик закрплен за следующими разделами объектов:' + '</div>';
+            text += newText;
+          } else {
+            text = '';
+          }
+
+          $('#modal-developer-' + id + '-delete .modal-header .model-object-list').html(text);
+          $('#modal-developer-' + id + '-delete').modal('show');
+        }
+      });
+    }
+  }
+
+  $(document).ready(function () {
+    var canonicalCheckbox = $(".canonicalLinkDefault").first(),
+        canonicalLink = $('.canonicalLink').first(),
+        linkOriginal = $(".linkOriginal").first(),
+        sectionForUrl = $('.sectionForUrl').first();
+
+    function correctUrl(path, url, context, otherSite) {
+      var parElem = context.parentNode;
+      if (otherSite !== false) {
+        otherSite = true;
+      }
+      if (url !== '') {
+        $.ajax({
+          type: "POST",
+          url: path,
+          data: {
+            'url': url,
+            'otherSite': otherSite
+          },
+          beforeSend: function beforeSend() {
+            $(context).attr('disabled', true);
+            $('.btn-primary').attr('disabled', true);
+
+            if ($('#messageUrl').length < 1) {
+              $(parElem).append('<span id="messageUrl">' + 'Идет обрабоктка... ' + '</span>');
+            }
+          },
+          success: function success(data) {
+            $('.btn-primary').attr('disabled', false);
             $('#messageUrl').remove();
-            $(this).removeClass('errorUrl');
+            $(context).attr('disabled', false);
+            viewMessage(data, context);
+          }
         });
+      }
+    }
 
-        $('#menu_objectSection').change(function () {
-            var parElem = document.querySelector('#menu_url');
-            if(this.value != ''){
-                $.ajax({
-                    type: "POST",
-                    url: "/admin/menu/geturl",
-                    data: {'id_object': this.value},
-                    success: (data) => {
-                        viewMessage(data, parElem);
-                    }
-                });
-            }else{
-                $("#menu_url").val('');
-            }
+    function viewMessage(data, parEle) {
+      var inputOnUrl = $(parEle);
+      var url = data['url'];
+      var code = data['code'];
+
+      if (code !== 200 && code !== 401 && code !== 1) {
+        $('#messageUrl').remove();
+        $(inputOnUrl[0]).addClass('errorUrl');
+        $(parEle.parentNode).append("<span id=\"messageUrl\" style='color:red'>" + " Неверный url " + "</span>");
+      } else if (code === 401) {
+        $('#messageUrl').remove();
+        $(inputOnUrl[0]).addClass('errorUrl');
+        $(parEle.parentNode).append("<span id=\"messageUrl\" style='color:red'>" + " Невозможно проверить url т.к. требуется авторизация. " + "</span>");
+      } else if (code === 1) {
+        $('#messageUrl').remove();
+        $(inputOnUrl[0]).addClass('errorUrl');
+        $(parEle.parentNode).append("<span id=\"messageUrl\" style='color:red'>" + " Данный url находится за пределами домена сайта." + "</span>");
+      } else {
+        $('#messageUrl').remove();
+      }
+
+      inputOnUrl.val(url);
+    } //Start code for menu correct link
+
+
+    $('#menu_url').on('blur', function () {
+      var url = $(this).val();
+      correctUrl("/admin/menu/isseturl", url, this, false);
+    });
+    $("#menu_url").on('focus', function () {
+      $('#messageUrl').remove();
+      $(this).removeClass('errorUrl');
+    });
+    $('#menu_objectSection').change(function () {
+      var parElem = document.querySelector('#menu_url');
+
+      if (this.value != '') {
+        $.ajax({
+          type: "POST",
+          url: "/admin/menu/geturl",
+          data: {
+            'id_object': this.value
+          },
+          success: function success(data) {
+            viewMessage(data, parElem);
+          }
         });
-        //End code for menu correct link
-        var eventAjax = new Event("loadCanonical", {bubbles: true});
-        function getSection(context, urlMethod, elemId = '', verifyCorrect = true, callback = false, userAjaxData = []){
-            var sectionElement = $(elemId);
-            if (sectionElement.length > 0) {
-                var sectionId = parseInt(sectionElement.val());
-                var url, parElem = canonicalLink.parent(), data = {"sectionId": sectionId};
-                if (userAjaxData.length > 0){
-                    for (var i = 0; i < userAjaxData.length; i++){
-                        data['up' + i] =  userAjaxData[i];
-                    }
-                }
-                    $.ajax({
-                        type: "POST",
-                        url: urlMethod,
-                        data: data,
-                        beforeSend: () => {
-                            $('.btn-primary').attr('disabled', true);
-                        },
-                        success: (data) => {
-                            $('.btn-primary').attr('disabled', false);
-                            $("#messageUrl").remove();
-                            url = canonicalLink.val();
-                            if (canonicalCheckbox.prop('checked')) {
-                                if (canonicalLink.val() !== "/" + data + "/" + linkOriginal.val()){
-                                    url = "/" + data + "/" + linkOriginal.val();
-                                    canonicalLink.val(url);
-                                }
-                            }else{
-                                canonicalLink.val(url);
-                                if (verifyCorrect) {
-                                    correctUrl("/admin/menu/isseturl", url, context);
-                                }
-                            }
-                            canonicalLink[0].dispatchEvent(eventAjax);
-                        }
-                    });
-            }else if (callback !== false && callback()){
-                var url = canonicalLink.val() , data;
-                if (callback !== false) {
-                    data = callback();
-                }
-                if (canonicalCheckbox.prop('checked')) {
-                    var section;
-                    if (data === true){
-                        section = '/';
-                    }else{
-                        section = "/" + data + "/";
-                    }
-                    url = canonicalLink.val().slice(1);
-                    if (url.indexOf("/") + 1 > 0) {
-                        var pos = url.indexOf("/");
-                        var colLiter = url.length - pos - 1;
-                        url = url.substr(url.length - colLiter);
-                        url =  section + url;
-                    } else {
-                        url = section + linkOriginal.val();
-                    }
-                    canonicalLink.val(url);
-                }else{
-                    canonicalLink.val(url);
-                    if (verifyCorrect) {
-                        correctUrl("/admin/menu/isseturl", url, context);
-                    }
-                }
-                canonicalLink[0].dispatchEvent(eventAjax);
-            }
-        }
+      } else {
+        $("#menu_url").val('');
+      }
+    }); //End code for menu correct link
 
-        canonicalLink.on('blur', function () {
-            if ($('#object_section_category').length > 0) {
-                getSection(this,
-                    "",
-                    "", true, function () {
-                        return $("#object_section_category option:selected").val();
-                    });
-            }
-            getSection(this,
-                '/admin/specialization/getspecializationurl',
-                "#apartment_specialization option:selected");
-            getSection(this,
-                "/admin/article-section/geturlsection",
-                "#article_articleSection option:selected");
-            getSection(this,
-                "/admin/specialization/getspecializationurl",
-                "#edit_user_profile_specialization option:selected",
-                true,
-                false,
-                ["prodazha-kvartir", "hero"]);
-            getSection(this,
-                "/admin/specialization/getspecializationurl",
-                "#create_user_profile_specialization option:selected",
-                true,
-                false,
-                ["prodazha-kvartir", "hero"]);
-            if ($("#specialization_name").length > 0) {
-                getSection(this,
-                    "",
-                    "",
-                    true, function (){
-                        return true;
-                    });
-            }
-            if ($("#article_section_name").length > 0) {
-                getSection(this,
-                    "",
-                    "",
-                    true, function (){
-                        return true;
-                    });
-            }
+    var eventAjax = new Event("loadCanonical", {
+      bubbles: true
+    });
 
-        });
-        linkOriginal.on('blur', function (){
-            canonicalLink.trigger('blur');
+    function getSection(context, urlMethod) {
+      var elemId = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
+      var verifyCorrect = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : true;
+      var callback = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : false;
+      var userAjaxData = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : [];
+      var sectionElement = $(elemId);
 
-        });
-        sectionForUrl.on('change', function () {
-            if ($('#object_section_category').length > 0) {
-                getSection(this,
-                    "",
-                    "", false, function () {
-                        return $("#object_section_category option:selected").val();
-                    });
-            }
-            getSection(this,
-                '/admin/specialization/getspecializationurl',
-                "#apartment_specialization option:selected",
-                false);
-            getSection(this,
-                "/admin/article-section/geturlsection",
-                "#article_articleSection option:selected",
-                false);
-            getSection(this,
-                "/admin/specialization/getspecializationurl",
-                "#edit_user_profile_specialization option:selected",
-                true,
-                false,
-                ["prodazha-kvartir", "hero"]);
-            getSection(this,
-                "/admin/specialization/getspecializationurl",
-                "#create_user_profile_specialization option:selected",
-                true,
-                false,
-                ["prodazha-kvartir", "hero"]);
-
-        });
-
-        canonicalLink.on('focus', function () {
-            $('#messageUrl').remove();
-            $(this).removeClass('errorUrl');
-        });
-
-        function uploadImage($pos, completed, fileElem, preview, size)
-        {
-
-            var file = fileElem[0].files[0];
-            var $posValue = $pos.children("option:selected").val();
-            var width, height;
-            var isCorrectImage = false;
-            var img = new Image();
-            if (preview[0].currentSrc !== '' && file === undefined) {
-                img.src = preview[0].currentSrc;
-            }else if (file !== undefined){
-                img.src = window.URL.createObjectURL( file );
-            }
-
-
-            img.onload = function () {
-                width = this.naturalWidth;
-                height = this.naturalHeight;
-                window.URL.revokeObjectURL( img.src );
-
-                    if (size[$posValue][0] === width && size[$posValue][1] === height) {
-                        isCorrectImage = true;
-                    }
-
-                completed(isCorrectImage, size);
-
-            };
-        }
-
-        var isUploadNewFile = false;
-        var oldImage = $('.upload-image-preview').length > 0 ? $('.upload-image-preview')[0].currentSrc : '';
-        const sizeBanner = {
-            'top': [1905, 385],
-            'right': [305, 400],
-            'bottom': [1580, 250],
+      if (sectionElement.length > 0) {
+        var sectionId = parseInt(sectionElement.val());
+        var url,
+            parElem = canonicalLink.parent(),
+            data = {
+          "sectionId": sectionId
         };
 
-        const sizeImage = {
-            'main' : [1905, 1052],
-            'article': [1905, 385],
-            'choice': [1905, 743]
-        };
+        if (userAjaxData.length > 0) {
+          for (var i = 0; i < userAjaxData.length; i++) {
+            data['up' + i] = userAjaxData[i];
+          }
+        }
 
-        $('#banner_position').on('change', function () {
-            $('#banner_file').css('background-color', 'white');
-            $('#banner_file').parent().parent().parent().find('label').css('color', '#07313a');
-            $('.submit-form[name=banner]').find('.errorJsImage').remove();
-            if (($('#banner_file')[0].files.length > 0 && $("#banner_fileType option:selected")[0].value === typeFiles['image']) || ($("#banner_file-preview")[0].currentSrc !== '' && !isNew && $("#banner_fileType option:selected")[0].value === typeFiles['image'])) {
-                uploadImage($(this), function (isCorrectImage, $pos, size) {
-                    if (isUploadNewFile) {
-                        viewErrorForBannerSelect(isCorrectImage, sizeBanner);
-                    } else {
-                        viewErrorForFile(isCorrectImage);
-                    }
-                }, $('#banner_file'), $("#banner_file-preview"), sizeBanner);
+        $.ajax({
+          type: "POST",
+          url: urlMethod,
+          data: data,
+          beforeSend: function beforeSend() {
+            $('.btn-primary').attr('disabled', true);
+          },
+          success: function success(data) {
+            $('.btn-primary').attr('disabled', false);
+            $("#messageUrl").remove();
+            url = canonicalLink.val();
 
-            }
-        });
-
-        function viewErrorForFile(isCorrectImage){
-            if (!isCorrectImage) {
-                $('.btn-primary').attr('disabled', true);
-                $('#banner_position').css('border', ' 1px solid #e74c3c');
-                $('#banner_position').css('background-color', '#ffd1cc');
-                $('#banner_position').parent().parent().find('label').css('color', '#e74c3c');
-                $('.submit-form[name=banner]').find('.errorJs').remove();
-                $('#banner_position').after('<p style="color: #e74c3c" class="errorJs">' +
-                    'Выбранная позиция не соответствует загруженной картинке.');
+            if (canonicalCheckbox.prop('checked')) {
+              if (canonicalLink.val() !== "/" + data + "/" + linkOriginal.val()) {
+                url = "/" + data + "/" + linkOriginal.val();
+                canonicalLink.val(url);
+              }
             } else {
-                $('.btn-primary').attr('disabled', false);
-                $('#banner_position').css('background-color', 'white');
-                $('#banner_position').css('border', ' 1px solid #e8e8e8');
-                $('#banner_position').parent().parent().find('label').css('color', '#07313a');
-                $('#banner_position').parent().parent().parent().find('label').css('color', '#07313a');
-                $('.submit-form[name=banner]').find('.errorJs').remove();
-                $('.submit-form[name=banner]').find('.errorJsImage').remove();
-            }
-        }
+              canonicalLink.val(url);
 
-        $('#banner_file').on('change', function () {
-            if ($(this)[0].files[0] !== undefined) {
-                isUploadNewFile = true;
-            } else {
-                isUploadNewFile = false;
-                $('.upload-image-preview').first().attr('src', oldImage);
-                viewErrorForFile(true);
-                viewErrorForBannerSelect(true);
+              if (verifyCorrect) {
+                correctUrl("/admin/menu/isseturl", url, context);
+              }
             }
-            $('#banner_position').css('background-color', 'white');
-            $('#banner_position').css('border', ' 1px solid #e8e8e8');
-            $('#banner_position').parent().parent().find('label').css('color', '#07313a');
-            $('.submit-form[name=banner]').find('.errorJs').remove();
-            if (($('#banner_file')[0].files.length > 0 &&
-                $("#banner_fileType option:selected")[0].value === typeFiles['image']) ||
-                ($("#banner_file-preview")[0].currentSrc !== '' && !isNew &&
-                    $("#banner_fileType option:selected")[0].value === typeFiles['image']) ) {
-                   uploadImage($('#banner_position'), function (isCorrectImage, size) {
-                       if (isUploadNewFile) {
-                           viewErrorForBannerSelect(isCorrectImage, sizeBanner);
-                       } else {
-                           viewErrorForFile(isCorrectImage);
-                       }
 
-                   }, $('#banner_file'), $("#banner_file-preview"), sizeBanner);
-            }
+            canonicalLink[0].dispatchEvent(eventAjax);
+          }
         });
+      } else if (callback !== false && callback()) {
+        var url = canonicalLink.val(),
+            data;
 
-        function viewErrorForBannerSelect(isCorrectImage, size) {
-            if (!isCorrectImage) {
-                if ($('.submit-form[name=banner]').find('.errorJsImage').length === 0) {
-                    $('.btn-primary').attr('disabled', true);
-                    $('#banner_file').parent().parent().parent().find('label').css('color', '#e74c3c');
-                    $('.submit-form[name=banner]').find('.errorJsImage').remove();
-                    $('#banner_file').after('<p style="color: #e74c3c" class="errorJsImage">' +
-                        'Изображение не соответсвует параметрам выбранной позиции, требуемые параметры: '
-                        + size[$('#banner_position').children("option:selected").val()][0] + '*' + size[$('#banner_position').children("option:selected").val()][1] + " px");
-                }
-            }else{
-                $('.btn-primary').attr('disabled', false);
-                $('#banner_file').parent().parent().parent().find('label').css('color', '#07313a');
-                $('.submit-form[name=banner]').find('.errorJs').remove();
-                $('.submit-form[name=banner]').find('.errorJsImage').remove();
-                $('#banner_position').css('background-color', 'white');
-                $('#banner_position').css('border', ' 1px solid #e8e8e8');
-                $('#banner_position').parent().parent().find('label').css('color', '#07313a');
-            }
+        if (callback !== false) {
+          data = callback();
         }
 
-    $('#banner_fileType').on('change', function () {
-        if ($("#banner_fileType option:selected")[0].value === typeFiles['image']) {
-            if ($('#banner_file')[0].files[0] == undefined) {
-                $('#banner_position').trigger('change');
-            }else{
-                $('#banner_file').trigger('change');
-            }
+        if (canonicalCheckbox.prop('checked')) {
+          var section;
 
+          if (data === true) {
+            section = '/';
+          } else {
+            section = "/" + data + "/";
+          }
+
+          url = canonicalLink.val().slice(1);
+
+          if (url.indexOf("/") + 1 > 0) {
+            var pos = url.indexOf("/");
+            var colLiter = url.length - pos - 1;
+            url = url.substr(url.length - colLiter);
+            url = section + url;
+          } else {
+            url = section + linkOriginal.val();
+          }
+
+          canonicalLink.val(url);
+        } else {
+          canonicalLink.val(url);
+
+          if (verifyCorrect) {
+            correctUrl("/admin/menu/isseturl", url, context);
+          }
         }
+
+        canonicalLink[0].dispatchEvent(eventAjax);
+      }
+    }
+
+    canonicalLink.on('blur', function () {
+      if ($('#object_section_category').length > 0) {
+        getSection(this, "", "", true, function () {
+          return $("#object_section_category option:selected").val();
+        });
+      }
+
+      getSection(this, '/admin/specialization/getspecializationurl', "#apartment_specialization option:selected");
+      getSection(this, "/admin/article-section/geturlsection", "#article_articleSection option:selected");
+      getSection(this, "/admin/specialization/getspecializationurl", "#edit_user_profile_specialization option:selected", true, false, ["prodazha-kvartir", "hero"]);
+      getSection(this, "/admin/specialization/getspecializationurl", "#create_user_profile_specialization option:selected", true, false, ["prodazha-kvartir", "hero"]);
+
+      if ($("#specialization_name").length > 0) {
+        getSection(this, "", "", true, function () {
+          return true;
+        });
+      }
+
+      if ($("#article_section_name").length > 0) {
+        getSection(this, "", "", true, function () {
+          return true;
+        });
+      }
+    });
+    linkOriginal.on('blur', function () {
+      canonicalLink.trigger('blur');
+    });
+    sectionForUrl.on('change', function () {
+      if ($('#object_section_category').length > 0) {
+        getSection(this, "", "", false, function () {
+          return $("#object_section_category option:selected").val();
+        });
+      }
+
+      getSection(this, '/admin/specialization/getspecializationurl', "#apartment_specialization option:selected", false);
+      getSection(this, "/admin/article-section/geturlsection", "#article_articleSection option:selected", false);
+      getSection(this, "/admin/specialization/getspecializationurl", "#edit_user_profile_specialization option:selected", true, false, ["prodazha-kvartir", "hero"]);
+      getSection(this, "/admin/specialization/getspecializationurl", "#create_user_profile_specialization option:selected", true, false, ["prodazha-kvartir", "hero"]);
+    });
+    canonicalLink.on('focus', function () {
+      $('#messageUrl').remove();
+      $(this).removeClass('errorUrl');
+    });
+
+    function uploadImage($pos, completed, fileElem, preview, size) {
+      var file = fileElem[0].files[0];
+      var $posValue = $pos.children("option:selected").val();
+      var width, height;
+      var isCorrectImage = false;
+      var img = new Image();
+
+      if (preview[0].currentSrc !== '' && file === undefined) {
+        img.src = preview[0].currentSrc;
+      } else if (file !== undefined) {
+        img.src = window.URL.createObjectURL(file);
+      }
+
+      img.onload = function () {
+        width = this.naturalWidth;
+        height = this.naturalHeight;
+        window.URL.revokeObjectURL(img.src);
+
+        if (size[$posValue][0] === width && size[$posValue][1] === height) {
+          isCorrectImage = true;
+        }
+
+        completed(isCorrectImage, size);
+      };
+    }
+
+    var isUploadNewFile = false;
+    var oldImage = $('.upload-image-preview').length > 0 ? $('.upload-image-preview')[0].currentSrc : '';
+    var sizeBanner = {
+      'top': [1905, 385],
+      'right': [305, 400],
+      'bottom': [1580, 250]
+    };
+    var sizeImage = {
+      'main': [1905, 1052],
+      'article': [1905, 385],
+      'choice': [1905, 743]
+    };
+    $('#banner_position').on('change', function () {
+      $('#banner_file').css('background-color', 'white');
+      $('#banner_file').parent().parent().parent().find('label').css('color', '#07313a');
+      $('.submit-form[name=banner]').find('.errorJsImage').remove();
+
+      if ($('#banner_file')[0].files.length > 0 && $("#banner_fileType option:selected")[0].value === typeFiles['image'] || $("#banner_file-preview")[0].currentSrc !== '' && !isNew && $("#banner_fileType option:selected")[0].value === typeFiles['image']) {
+        uploadImage($(this), function (isCorrectImage, $pos, size) {
+          if (isUploadNewFile) {
+            viewErrorForBannerSelect(isCorrectImage, sizeBanner);
+          } else {
+            viewErrorForFile(isCorrectImage);
+          }
+        }, $('#banner_file'), $("#banner_file-preview"), sizeBanner);
+      }
+    });
+
+    function viewErrorForFile(isCorrectImage) {
+      if (!isCorrectImage) {
+        $('.btn-primary').attr('disabled', true);
+        $('#banner_position').css('border', ' 1px solid #e74c3c');
+        $('#banner_position').css('background-color', '#ffd1cc');
+        $('#banner_position').parent().parent().find('label').css('color', '#e74c3c');
+        $('.submit-form[name=banner]').find('.errorJs').remove();
+        $('#banner_position').after('<p style="color: #e74c3c" class="errorJs">' + 'Выбранная позиция не соответствует загруженной картинке.');
+      } else {
+        $('.btn-primary').attr('disabled', false);
+        $('#banner_position').css('background-color', 'white');
+        $('#banner_position').css('border', ' 1px solid #e8e8e8');
+        $('#banner_position').parent().parent().find('label').css('color', '#07313a');
+        $('#banner_position').parent().parent().parent().find('label').css('color', '#07313a');
+        $('.submit-form[name=banner]').find('.errorJs').remove();
+        $('.submit-form[name=banner]').find('.errorJsImage').remove();
+      }
+    }
+
+    $('#banner_file').on('change', function () {
+      if ($(this)[0].files[0] !== undefined) {
+        isUploadNewFile = true;
+      } else {
+        isUploadNewFile = false;
+        $('.upload-image-preview').first().attr('src', oldImage);
+        viewErrorForFile(true);
+        viewErrorForBannerSelect(true);
+      }
+
+      $('#banner_position').css('background-color', 'white');
+      $('#banner_position').css('border', ' 1px solid #e8e8e8');
+      $('#banner_position').parent().parent().find('label').css('color', '#07313a');
+      $('.submit-form[name=banner]').find('.errorJs').remove();
+
+      if ($('#banner_file')[0].files.length > 0 && $("#banner_fileType option:selected")[0].value === typeFiles['image'] || $("#banner_file-preview")[0].currentSrc !== '' && !isNew && $("#banner_fileType option:selected")[0].value === typeFiles['image']) {
+        uploadImage($('#banner_position'), function (isCorrectImage, size) {
+          if (isUploadNewFile) {
+            viewErrorForBannerSelect(isCorrectImage, sizeBanner);
+          } else {
+            viewErrorForFile(isCorrectImage);
+          }
+        }, $('#banner_file'), $("#banner_file-preview"), sizeBanner);
+      }
+    });
+
+    function viewErrorForBannerSelect(isCorrectImage, size) {
+      if (!isCorrectImage) {
+        if ($('.submit-form[name=banner]').find('.errorJsImage').length === 0) {
+          $('.btn-primary').attr('disabled', true);
+          $('#banner_file').parent().parent().parent().find('label').css('color', '#e74c3c');
+          $('.submit-form[name=banner]').find('.errorJsImage').remove();
+          $('#banner_file').after('<p style="color: #e74c3c" class="errorJsImage">' + 'Изображение не соответсвует параметрам выбранной позиции, требуемые параметры: ' + size[$('#banner_position').children("option:selected").val()][0] + '*' + size[$('#banner_position').children("option:selected").val()][1] + " px");
+        }
+      } else {
         $('.btn-primary').attr('disabled', false);
         $('#banner_file').parent().parent().parent().find('label').css('color', '#07313a');
         $('.submit-form[name=banner]').find('.errorJs').remove();
@@ -1567,280 +1584,292 @@ $(document).ready(
         $('#banner_position').css('background-color', 'white');
         $('#banner_position').css('border', ' 1px solid #e8e8e8');
         $('#banner_position').parent().parent().find('label').css('color', '#07313a');
+      }
+    }
+
+    $('#banner_fileType').on('change', function () {
+      if ($("#banner_fileType option:selected")[0].value === typeFiles['image']) {
+        if ($('#banner_file')[0].files[0] == undefined) {
+          $('#banner_position').trigger('change');
+        } else {
+          $('#banner_file').trigger('change');
+        }
+      }
+
+      $('.btn-primary').attr('disabled', false);
+      $('#banner_file').parent().parent().parent().find('label').css('color', '#07313a');
+      $('.submit-form[name=banner]').find('.errorJs').remove();
+      $('.submit-form[name=banner]').find('.errorJsImage').remove();
+      $('#banner_position').css('background-color', 'white');
+      $('#banner_position').css('border', ' 1px solid #e8e8e8');
+      $('#banner_position').parent().parent().find('label').css('color', '#07313a');
+    });
+    $('#image_page_page').on('change', function () {
+      $('#image_page_image').css('background-color', 'white');
+      $('#image_page_image').parent().parent().parent().find('label').css('color', '#07313a');
+      $('.submit-form[name=image_page]').find('.errorJsImage').remove();
+
+      if ($('#image_page_image')[0].files.length > 0 || $("#image_page_image-preview")[0].currentSrc !== '' && !isNew) {
+        uploadImage($(this), function (isCorrectImage, size) {
+          if (isUploadNewFile) {
+            viewErorForButtonFileImage(isCorrectImage, sizeImage);
+          } else {
+            viewErorForImageSelect(isCorrectImage);
+          }
+        }, $('#image_page_image'), $("#image_page_image-preview"), sizeImage);
+      }
+    });
+    $('#image_page_image').on('change', function () {
+      if ($(this)[0].files[0] !== undefined) {
+        isUploadNewFile = true;
+      } else {
+        isUploadNewFile = false;
+        $('.upload-image-preview').first().attr('src', oldImage);
+        viewErorForButtonFileImage(true);
+        viewErorForImageSelect(true);
+      }
+
+      $('#image_page_page').css('background-color', 'white');
+      $('#image_page_page').css('border', ' 1px solid #e8e8e8');
+      $('#image_page_page').parent().parent().find('label').css('color', '#07313a');
+      $('.submit-form[name=image_page]').find('.errorJs').remove();
+
+      if ($('#image_page_image')[0].files.length > 0 || $("#image_page_image-preview")[0].currentSrc !== '' && !isNew) {
+        uploadImage($('#image_page_page'), function (isCorrectImage, $pos, size) {
+          if (isUploadNewFile) {
+            viewErorForButtonFileImage(isCorrectImage, sizeImage);
+          } else {
+            viewErorForImageSelect(isCorrectImage);
+          }
+        }, $('#image_page_image'), $("#image_page_image-preview"), sizeImage);
+      }
     });
 
-        $('#image_page_page').on('change', function () {
-                $('#image_page_image').css('background-color', 'white');
-                $('#image_page_image').parent().parent().parent().find('label').css('color', '#07313a');
-                $('.submit-form[name=image_page]').find('.errorJsImage').remove();
-                if ($('#image_page_image')[0].files.length > 0 || ($("#image_page_image-preview")[0].currentSrc !== '' && !isNew)) {
-                    uploadImage($(this), function (isCorrectImage, size) {
-                        if (isUploadNewFile) {
-                            viewErorForButtonFileImage(isCorrectImage, sizeImage);
-                        } else {
-                            viewErorForImageSelect(isCorrectImage);
-                        }
-                    }, $('#image_page_image'), $("#image_page_image-preview"), sizeImage);
+    function viewErorForImageSelect(isCorrectImage) {
+      if (!isCorrectImage) {
+        $('.btn-primary').attr('disabled', true);
+        $('#image_page_page').css('border', ' 1px solid #e74c3c');
+        $('#image_page_page').css('background-color', '#ffd1cc');
+        $('#image_page_page').parent().parent().find('label').css('color', '#e74c3c');
+        $('.submit-form[name=image_page]').find('.errorJs').remove();
+        $('#image_page_page').after('<p style="color: #e74c3c" class="errorJs">' + 'Выбранная позиция не соответствует загруженной картинке.');
+      } else {
+        $('.btn-primary').attr('disabled', false);
+        $('#image_page_page').css('background-color', 'white');
+        $('#image_page_page').css('border', ' 1px solid #e8e8e8');
+        $('#image_page_page').parent().parent().find('label').css('color', '#07313a');
+        $('#image_page_page').parent().parent().parent().find('label').css('color', '#07313a');
+        $('.submit-form[name=image_page]').find('.errorJs').remove();
+        $('.submit-form[name=image_page]').find('.errorJsImage').remove();
+      }
+    }
 
-                }
+    function viewErorForButtonFileImage(isCorrectImage, size) {
+      if (!isCorrectImage) {
+        if ($('.submit-form[name=image_page]').find('.errorJsImage').length === 0) {
+          $('.btn-primary').attr('disabled', true);
+          $('#image_page_image').parent().parent().parent().find('label').css('color', '#e74c3c');
+          $('.submit-form[name=banner]').find('.errorJsImage').remove();
+          $('#image_page_image').after('<p style="color: #e74c3c" class="errorJsImage">' + 'Изображение не соответсвует параметрам выбранной позиции, требуемые параметры: ' + size[$('#image_page_page').children("option:selected").val()][0] + '*' + size[$('#image_page_page').children("option:selected").val()][1] + " px");
+        }
+      } else {
+        $('.btn-primary').attr('disabled', false);
+        $('#image_page_image').parent().parent().parent().find('label').css('color', '#07313a');
+        $('.submit-form[name=image_page]').find('.errorJs').remove();
+        $('.submit-form[name=image_page]').find('.errorJsImage').remove();
+        $('#image_page_image').parent().parent().find('label').css('color', '#07313a');
+      }
+    }
 
-        });
+    $('#object_section_additionalObjects').on('input', function (e) {
+      var stringObjects = $('#object_section_additionalObjects').val(),
+          regex = /[^0-9\s]+/;
+      var regexObj = new RegExp(regex);
 
-        $('#image_page_image').on('change', function () {
-            if ($(this)[0].files[0] !== undefined) {
-                isUploadNewFile = true;
+      while (regexObj.test(stringObjects)) {
+        stringObjects = stringObjects.replace(regex, "");
+      }
+
+      $('#object_section_additionalObjects').val(stringObjects.replace(/[\s]+/g, " "));
+    });
+    $('.submit-form[name=object_section]').on('submit', function (e) {
+      var additionalRow = $('#object_section_additionalObjects');
+
+      if (additionalRow.val() !== "") {
+        e.preventDefault();
+        $.ajax({
+          url: "/admin/object_section/ajax/verify/objects",
+          method: "POST",
+          dataType: "html",
+          beforeSend: function beforeSend() {
+            $(this).prop('disabled', true);
+          },
+          data: {
+            'data': additionalRow.val()
+          },
+          success: function success(data) {
+            var dataArr = JSON.parse(data);
+
+            if (dataArr['issetNoValidObjectsCode'] === 419 || dataArr['issetNoValidObjectsCode'] === 420 || dataArr['issetNoValidObjectsCode'] === 422) {
+              $('#model-text').html(dataArr['text']);
+              $('#modal-object-section').modal('show');
+              $('#object_section_delete_submit').on('click', function () {
+                var objectsIdArr = dataArr['objects'].split(", "),
+                    valueInputArr = additionalRow.val().split(" "),
+                    resultValueInput = '';
+                valueInputArr.forEach(function (element) {
+                  if (!objectsIdArr.includes(String(element))) {
+                    resultValueInput += element + " ";
+                  }
+                });
+                additionalRow.val(resultValueInput);
+                document.querySelector('.submit-form[name=object_section]').submit();
+              });
+              $('#object_section_submit').on('click', function () {
+                document.querySelector('.submit-form[name=object_section]').submit();
+              });
+              $('#object_section_back').on('click', function () {
+                $('.btn-primary').prop('disabled', false);
+                $('#object_section_delete_submit').show();
+              });
             } else {
-                isUploadNewFile = false;
-                $('.upload-image-preview').first().attr('src', oldImage);
-                viewErorForButtonFileImage(true);
-                viewErorForImageSelect(true);
+              document.querySelector('.submit-form[name=object_section]').submit();
             }
-            $('#image_page_page').css('background-color', 'white');
-            $('#image_page_page').css('border', ' 1px solid #e8e8e8');
-            $('#image_page_page').parent().parent().find('label').css('color', '#07313a');
-            $('.submit-form[name=image_page]').find('.errorJs').remove();
-            if ($('#image_page_image')[0].files.length > 0 ||
-                ($("#image_page_image-preview")[0].currentSrc !== '' && !isNew) ) {
-                uploadImage($('#image_page_page'), function (isCorrectImage, $pos, size) {
-                    if (isUploadNewFile) {
-                        viewErorForButtonFileImage(isCorrectImage, sizeImage);
-                    } else {
-                        viewErorForImageSelect(isCorrectImage);
-                    }
-
-                }, $('#image_page_image'), $("#image_page_image-preview"), sizeImage);
-            }
+          }
         });
+      } else {
+        this.submit();
+      }
+    });
+    $('.submit-form[name=article]').on('submit', function (e) {
+      e.preventDefault();
+      var allLinks = [],
+          linksInTextarea = $(this).find('textarea'),
+          regex = /(?<!url=")href="(https?:\/{2}(w{3}[.A-Za-z]+)?([.?a-zA-z]+)?)/,
+          regObj = new RegExp(regex, 'g');
+      var message = 'В одном из полей статьи были обнаружены ссылки на другие сайты: <br>',
+          elementTextareaval = '';
+      linksInTextarea.each(function (item) {
+        elementTextareaval += linksInTextarea.eq(item).val();
+      });
+      elementTextareaval += $("#article_seoTitle").val();
+      var bool = regObj.test(elementTextareaval);
 
-        function viewErorForImageSelect(isCorrectImage){
-            if (!isCorrectImage) {
-                $('.btn-primary').attr('disabled', true);
-                $('#image_page_page').css('border', ' 1px solid #e74c3c');
-                $('#image_page_page').css('background-color', '#ffd1cc');
-                $('#image_page_page').parent().parent().find('label').css('color', '#e74c3c');
-                $('.submit-form[name=image_page]').find('.errorJs').remove();
-                $('#image_page_page').after('<p style="color: #e74c3c" class="errorJs">' +
-                    'Выбранная позиция не соответствует загруженной картинке.');
+      if (bool) {
+        var maches = elementTextareaval.match(/(?<!url=")href="(https?:\/{2}(w{3}[.A-Za-z]+)?([.?a-zA-z]+)?)/g);
+        allLinks = unique(maches);
+      }
 
-            } else {
-                $('.btn-primary').attr('disabled', false);
-                $('#image_page_page').css('background-color', 'white');
-                $('#image_page_page').css('border', ' 1px solid #e8e8e8');
-                $('#image_page_page').parent().parent().find('label').css('color', '#07313a');
-                $('#image_page_page').parent().parent().parent().find('label').css('color', '#07313a');
-                $('.submit-form[name=image_page]').find('.errorJs').remove();
-                $('.submit-form[name=image_page]').find('.errorJsImage').remove();
-            }
+      if (allLinks.length > 0) {
+        allLinks = allLinks.map(function (item) {
+          return item.replace('href="', '');
+        });
+        message += allLinks.join(", ").trim(", ");
+        message += '<br> Уверены что обязательно надо дать ссылку на внешний сайт? <br> Для SEO лучше просто текстом оставить.';
+        $('#modal-article').modal('show');
+        $("#model-text").html(message);
+        $("#article_submit").on('click', function () {
+          document.querySelector('.submit-form[name=article]').submit();
+        });
+        $("#article_back").on('click', function () {
+          $('#modal-article').modal('hide');
+          $(".btn-primary").attr('disabled', false);
+        });
+      } else {
+        this.submit();
+      }
+
+      function unique(array) {
+        var arrayWithoutDouble = [];
+
+        for (var i = 0; i < array.length; i++) {
+          var item = array[i];
+
+          if (arrayWithoutDouble.indexOf(item) === -1) {
+            arrayWithoutDouble.push(item);
+          }
         }
 
-        function viewErorForButtonFileImage(isCorrectImage, size) {
-            if (!isCorrectImage) {
-                if ($('.submit-form[name=image_page]').find('.errorJsImage').length === 0) {
-                    $('.btn-primary').attr('disabled', true);
-                    $('#image_page_image').parent().parent().parent().find('label').css('color', '#e74c3c');
-                    $('.submit-form[name=banner]').find('.errorJsImage').remove();
-                    $('#image_page_image').after('<p style="color: #e74c3c" class="errorJsImage">' +
-                        'Изображение не соответсвует параметрам выбранной позиции, требуемые параметры: '
-                        + size[$('#image_page_page').children("option:selected").val()][0] + '*' + size[$('#image_page_page').children("option:selected").val()][1] + " px");
-                }
-            }else{
-                $('.btn-primary').attr('disabled', false);
-                $('#image_page_image').parent().parent().parent().find('label').css('color', '#07313a');
-                $('.submit-form[name=image_page]').find('.errorJs').remove();
-                $('.submit-form[name=image_page]').find('.errorJsImage').remove();
-                $('#image_page_image').parent().parent().find('label').css('color', '#07313a');
+        return arrayWithoutDouble;
+      }
+    }); //Reset data in rss.xml
+
+    $("#resetRedirectButton").on('click', function () {
+      $(".buttonConfirm").on('click', function () {
+        if ($(this).data('bool')) {
+          $.ajax({
+            url: '/rss/reset',
+            type: "html",
+            method: "POST",
+            beforeSend: function beforeSend() {
+              $("#resetRedirectButton").prop('disabled', true);
+            },
+            success: function success(data) {
+              $("#resetRedirectButton").prop('disabled', false);
+
+              if (data['state'] === 'ok') {
+                $('#modal-rss-reset').modal('hide');
+                $.bootstrapGrowl("Данные обновлены успешно!", {
+                  type: 'success',
+                  delay: 2000
+                });
+              }
             }
+          });
+        } else {
+          $('#modal-rss-reset').show();
+        }
+      });
+      $('#modal-rss-reset').modal('show');
+    }); ///////// Upload file for index page (admin panel) /////////////
+
+    function uploadFileToStatic(fileTagId, buttonTagId, urlToMethod) {
+      var link = localStorage.getItem('linkLastUploadedFile');
+
+      if (link) {
+        $("#outForLinkFile").html("Последний загруженный вами файл:<br>" + link);
+      }
+
+      $(buttonTagId).on('click', function (event) {
+        event.stopPropagation();
+        event.preventDefault();
+        var files = document.querySelector(fileTagId).files;
+
+        if (files.length < 1) {
+          alert("Выберите файл!");
+          return false;
         }
 
-
-
-
-
-
-        $('#object_section_additionalObjects').on('input', function (e) {
-           var stringObjects = $('#object_section_additionalObjects').val(), regex = /[^0-9\s]+/;
-           var regexObj = new RegExp(regex);
-            while(regexObj.test(stringObjects)) {
-                stringObjects = stringObjects.replace(regex, "");
-            }
-            $('#object_section_additionalObjects').val(stringObjects.replace(/[\s]+/g, " "));
-
-        });
-
-        $('.submit-form[name=object_section]').on('submit', function (e) {
-            var additionalRow = $('#object_section_additionalObjects');
-            if (additionalRow.val() !== "") {
-               e.preventDefault();
-                $.ajax({
-                    url: "/admin/object_section/ajax/verify/objects",
-                    method: "POST",
-                    dataType: "html",
-                    beforeSend: function (){
-                        $(this).prop('disabled', true);
-                    },
-                    data:{'data': additionalRow.val()},
-                    success:  function (data) {
-                        var dataArr = JSON.parse(data);
-                        if (dataArr['issetNoValidObjectsCode'] === 419 ||
-                            dataArr['issetNoValidObjectsCode'] ===  420 ||
-                            dataArr['issetNoValidObjectsCode'] === 422 ) {
-                            $('#model-text').html(dataArr['text']);
-                            $('#modal-object-section').modal('show');
-                            $('#object_section_delete_submit').on('click', function () {
-                                var objectsIdArr = dataArr['objects'].split(", "),
-                                    valueInputArr = additionalRow.val().split(" "),
-                                    resultValueInput = '';
-                                valueInputArr.forEach(function  (element) {
-                                    if (!objectsIdArr.includes(String(element))) {
-                                        resultValueInput += element  + " ";
-                                    }
-                                });
-                                additionalRow.val(resultValueInput);
-                                document.querySelector('.submit-form[name=object_section]').submit();
-                            });
-                            $('#object_section_submit').on('click', function () {
-                                document.querySelector('.submit-form[name=object_section]').submit();
-                            });
-
-                            $('#object_section_back').on('click', function () {
-                                $('.btn-primary').prop('disabled', false);
-                                $('#object_section_delete_submit').show();
-                            });
-                        }else{
-                            document.querySelector('.submit-form[name=object_section]').submit();
-                        }
-                    }
-                });
+        console.log(files);
+        var data = new FormData();
+        data.append('file', files[0]);
+        $.ajax({
+          url: urlToMethod,
+          type: 'POST',
+          data: data,
+          cache: false,
+          dataType: 'json',
+          processData: false,
+          contentType: false,
+          success: function success(data) {
+            if (data['response']) {
+              var link = data['response'];
+              $("#outForLinkFile").text(link);
+              localStorage.setItem('linkLastUploadedFile', link);
             } else {
-                this.submit();
+              $("#outForLinkFile").text("Во время загрузки файла произошла ошибка!");
             }
+          },
+          error: function error(jqXHR, status) {
+            console.log('ОШИБКА AJAX запроса: ' + status, jqXHR);
+          }
         });
+      });
+    }
 
-        $('.submit-form[name=article]').on('submit', function (e) {
-            e.preventDefault();
-            var allLinks = [], linksInTextarea = $(this).find('textarea'), regex = /(?<!url=")href="(https?:\/{2}(w{3}[.A-Za-z]+)?([.?a-zA-z]+)?)/, regObj = new RegExp(regex, 'g');
-            var message = 'В одном из полей статьи были обнаружены ссылки на другие сайты: <br>',  elementTextareaval = '';
-            linksInTextarea.each(function (item) {
-                 elementTextareaval += linksInTextarea.eq(item).val();
-            });
-            elementTextareaval += $("#article_seoTitle").val();
-            var bool = regObj.test(elementTextareaval);
-            if (bool) {
-                var maches = elementTextareaval.match(/(?<!url=")href="(https?:\/{2}(w{3}[.A-Za-z]+)?([.?a-zA-z]+)?)/g);
-                allLinks = unique(maches);
-            }
+    uploadFileToStatic("#uploadFileIndex", "#uploadFiles", "/admin/adminfile/loadfiletostatic");
+  }); //set styles on javascript
 
-            if (allLinks.length > 0) {
-                allLinks = allLinks.map(function (item) {
-                    return item.replace('href="', '');
-                });
-                message +=  allLinks.join(", ").trim(", ");
-                message += '<br> Уверены что обязательно надо дать ссылку на внешний сайт? <br> Для SEO лучше просто текстом оставить.';
-                $('#modal-article').modal('show');
-                $("#model-text").html(message);
-                $("#article_submit").on('click', function () {
-                    document.querySelector('.submit-form[name=article]').submit();
-                });
-                $("#article_back").on('click', function () {
-                    $('#modal-article').modal('hide');
-                    $(".btn-primary").attr('disabled', false);
-                });
-            } else {
-                this.submit();
-            }
-
-            function unique(array) {
-                var arrayWithoutDouble = [];
-                for (var i = 0; i < array.length; i++){
-                   var item = array[i];
-                   if (arrayWithoutDouble.indexOf(item) === -1) {
-                       arrayWithoutDouble.push(item);
-                   }
-                }
-                return arrayWithoutDouble;
-            }
-        });
-
-        //Reset data in rss.xml
-        $("#resetRedirectButton").on('click', function () {
-            $(".buttonConfirm").on('click', function () {
-
-                if($(this).data('bool')) {
-                    $.ajax({
-                        url: '/rss/reset',
-                        type:"html",
-                        method: "POST",
-                        beforeSend: function () {
-                            $("#resetRedirectButton").prop('disabled', true);
-                        },
-                        success: function (data) {
-                            $("#resetRedirectButton").prop('disabled', false);
-                            if (data['state'] === 'ok') {
-                                $('#modal-rss-reset').modal('hide');
-                                $.bootstrapGrowl("Данные обновлены успешно!", { type: 'success', delay: 2000 });
-                            }
-                        }
-                    });
-                } else {
-                    $('#modal-rss-reset').show();
-                }
-
-            });
-            $('#modal-rss-reset').modal('show');
-        });
-
-
-        ///////// Upload file for index page (admin panel) /////////////
-        function uploadFileToStatic(fileTagId, buttonTagId, urlToMethod) {
-            var link = localStorage.getItem('linkLastUploadedFile');
-            if (link) {
-                $("#outForLinkFile").html("Последний загруженный вами файл:<br>" + link);
-            }
-            $(buttonTagId).on('click', function (event) {
-                event.stopPropagation();
-                event.preventDefault();
-                var files = document.querySelector(fileTagId).files;
-                if (files.length < 1) {
-                    alert("Выберите файл!");
-                    return false;
-                }
-                console.log(files);
-                var data = new FormData();
-                data.append('file', files[0]);
-
-                $.ajax({
-                    url: urlToMethod,
-                    type: 'POST',
-                    data: data,
-                    cache: false,
-                    dataType: 'json',
-                    processData: false,
-                    contentType: false,
-                    success: function (data) {
-                        if (data['response']) {
-                           var link = data['response'];
-                           $("#outForLinkFile").text(link);
-                           localStorage.setItem('linkLastUploadedFile', link);
-                        } else {
-                            $("#outForLinkFile").text("Во время загрузки файла произошла ошибка!");
-                        }
-                    },
-                    error: function (jqXHR, status) {
-                        console.log('ОШИБКА AJAX запроса: ' + status, jqXHR);
-                    }
-
-                });
-            });
-        }
-        uploadFileToStatic("#uploadFileIndex", "#uploadFiles", "/admin/adminfile/loadfiletostatic");
-});
-
-
-
-
-
-//set styles on javascript
-$(document).ready(
-    function(){
-        $('.canonicalLinkDefault').first().parent().parent().parent().css('margin-bottom', '5px');
-});
+  $(document).ready(function () {
+    $('.canonicalLinkDefault').first().parent().parent().parent().css('margin-bottom', '5px');
+  });

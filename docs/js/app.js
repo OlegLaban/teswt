@@ -1745,7 +1745,7 @@ var App = function() {
       e.preventDefault();
       var allLinks = [],
           linksInTextarea = $(this).find('textarea'),
-          regex = /(?<!url=")href="(https?:\/{2}(w{3}[.A-Za-z]+)?([.?a-zA-z]+)?)/,
+          regex = /(<!url=")href="(https?:\/{2}(w{3}[.A-Za-z]+)?([.?a-zA-z]+)?)/,
           regObj = new RegExp(regex, 'g');
       var message = 'В одном из полей статьи были обнаружены ссылки на другие сайты: <br>',
           elementTextareaval = '';

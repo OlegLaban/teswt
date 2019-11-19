@@ -1756,7 +1756,7 @@ var App = function() {
       var bool = regObj.test(elementTextareaval);
 
       if (bool) {
-        var maches = elementTextareaval.match(/(?<!url=")href="(https?:\/{2}(w{3}[.A-Za-z]+)?([.?a-zA-z]+)?)/g);
+        var maches = elementTextareaval.match(/(<!url=")href="(https?:\/{2}(w{3}[.A-Za-z]+)?([.?a-zA-z]+)?)/g);
         allLinks = unique(maches);
       }
 

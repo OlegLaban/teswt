@@ -1198,7 +1198,7 @@ $(document).ready(
             linkOriginal = $(".linkOriginal").first(),
             sectionForUrl = $('.sectionForUrl').first();
 
-         function correctUrl(path, url, context, otherSit){
+         function correctUrl(path, url, context, otherSite){
             var parElem = context.parentNode;
             if(url !== ''){
                 $.ajax({
